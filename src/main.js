@@ -99,11 +99,49 @@ function initEquipmentSelect(equipmentType) {
     let gameEquipment = Object.values(itemDetailMap)
         .filter((item) => item.categoryHrid == "/item_categories/equipment")
         .filter((item) => item.equipmentDetail.type == "/equipment_types/" + equipmentType)
-        .sort((a, b) => a.sortIndex - b.sortIndex);
+        //removed sorting in favour of grouping instead
 
-    for (const equipment of Object.values(gameEquipment)) {
-        selectElement.add(new Option(equipment.name, equipment.hrid));
+
+    // group equipments by the last word of their names.
+    // e.g 
+    // ["crimson sword", "rainbow sword", "verdant mace"]
+    //                        |
+    //                        v
+    // {sword: ["crimson sword", "rainbow sword"], mace: ["verdant mace"]}
+    const groupedGameEquipment = new Map();
+
+    for (const item of gameEquipment) {
+        const groupName = item.name.trim().split(" ").pop();
+        if (!groupedGameEquipment.has(groupName)) {
+            groupedGameEquipment.set(groupName, []);
+        }
+        groupedGameEquipment.get(groupName).push(item);
     }
+    
+    //A configurable list for accordions that should not have groupings.
+    const ignoreType = ["ring", "pouch", "neck", "earrings", "back"];
+
+    groupedGameEquipment.forEach((equipments, groupName) => {
+        let optGroup = null;
+        for (const equipment of equipments) {
+          const { name, hrid, equipmentDetail } = equipment;
+          const type = equipmentDetail.type.split("/").pop();
+          let opt = new Option(name, hrid);
+          if (ignoreType.includes(type)) {
+            // If the equipment type is in the ignore list, add it directly.
+            selectElement.add(opt);
+          } else {
+            // Otherwise, create the optgroup only once and add the option to it.
+            if (!optGroup) {
+              optGroup = document.createElement("optgroup");
+              optGroup.label = groupName;
+            }
+            optGroup.appendChild(opt);
+            selectElement.add(optGroup);
+          }
+        }
+      });
+      
 
     selectElement.addEventListener("change", (event) => {
         equipmentSelectHandler(event, equipmentType);
